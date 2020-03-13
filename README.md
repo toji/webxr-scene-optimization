@@ -48,6 +48,14 @@ Despite all that, it's really easy to become Draw Call limited in BOTH web and n
 
 So, with all that in mind and hopefully with a new-found confidence that your web content doesn't have to suck, let's take a look at what we can do to make things better for our little island scene.
 
+## A quick note about the "problems" we'll be addressing
+
+Before we go any further, I want to point out that I'm going to spend a lot of time talking about various "problems" and "fixes" for 3D meshes, and that might make it sound like the artist for any particular mesh was being sloppy or incompetent. Nothing could be further from the truth!
+
+There tends to be a natural tension between what's good for the creating and editing 3D models and what's good for realtime rendering. As you'll see below a lot of the "optimizations" we're going to apply would make an artists life much, much harder if they used them as part of their standard process. You can hardly blame someone for prioritizing their own workflow.
+
+Additionally, in some cases, the optimizations we apply will depend on the needs of your specific app, which the artist obviously didn't know if you're using random online assets. Unless you're lucky enough to have dedicated artists on your team that know what your applications exact needs, you'll just need to get used to putting some work into tailoring other people's work to your needs.
+
 ## Finding the bottlenecks
 
 As with anything in development, we shouldn't dive into optimizing anything until we've been able to measure the problem, so let's do some profiling! With any mobile device that uses a Chromium-based browser (that includes Oculus Go and Oculus Quest), you can pull up dev tools for pages running on your device from Chrome on your PC. Just plug your device in with a USB cable, make sure Development Mode is enabled (device specific but easily searchable), and navigate to **about:inspect** with Chrome on your PC. (I can't give you a direct link because Chrome requires you to enter it manually.) From there you should be able to see your mobile device listed as well as every tab open on the device. (You may need to accept a prompt to allow USB debugging on the device after ou open the page.) For me it looks like this:
@@ -187,7 +195,7 @@ We're still not down to the ideal ~13ms frame time, but this is immensely better
 
 That was such a huge boost in the performance of our scene, you may wonder why it's not a standard part of model building to smoosh all your meshes into one big triangle ball all the time. But, as it turns out, there's a bunch of good reasons why you may want to leave meshes separated, even when they share the same material.
 
-First and foremost is if you're still editing the scene. Merged meshes are great for rendering but a major pain for mesh placement. For example, if, after merging, we try to move just one of the rocks on the island we'll find that almost every other rock on the island now wants to move at the same time. We can still move single features if we're willing to go into "Edit Mode" and select all the faces individually (a time consuming task), but it's much easier to change the layout when everything is still separate. As such the mesh merging should usually be done as a last step, and it's a good idea to keep an un-merged copy of the asset around in case you need to edit it later. There tends to be a natural tension between what's good for the artist when their building a scene and what's good for realtime rendering, and this is definitely one of those cases.
+First and foremost is if you're still editing the scene. Merged meshes are great for rendering but a major pain for mesh placement. For example, if, after merging, we try to move just one of the rocks on the island we'll find that almost every other rock on the island now wants to move at the same time. We can still move single features if we're willing to go into "Edit Mode" and select all the faces individually (a time consuming task), but it's much easier to change the layout when everything is still separate. As such the mesh merging should usually be done as a last step, and it's a good idea to keep an un-merged copy of the asset around in case you need to edit it later.
 
 For mostly the same reasons, if you have individual meshes that you want to move around at runtime, you should leave them separate as well. For instance: There's various birds around the island, and if I wanted to have them fly around on some preset path it's easiest to leave them separate so I can either keyframe the animation in Blender or do it programatically in my page script.
 
@@ -219,9 +227,33 @@ In the end I didn't get too much of a mesh reduction out of these two techniques
 Mesh Count:  53 -> 45
 ```
 
+## Backface culling
+
+Something that won't help with reducing the number of draw calls but CAN speed up your rendering (especially if you are Fill Rate limited) is making sure that you turn on the "Backface Culling" option for as many materials as you can. This checkbox can be found in the "Materials Properties" tab, and it tells the renderer to not draw any triangles that are facing "away" from you. Applied consistently this can allow your GPU to stop working early on ~half the triangles in your field of view.
+
+There's a few situations where it shouldn't apply, though, and some cases where you may have to fix something before it can be used. In every case you should visually inspect objects as you turn backface culling on to make sure you're getting the desired effect. Ideally as you toggle the checkbox off and on you shouldn't see your mesh change, and if it does you'll either need to fix the mesh or leave backface culling off.
+
+To start, you rarely want to use backface culling when your object has any transparency but it also depends on the effect you want. Also, if you have any geometry that consists of just a single "sheet" of polygons turning on backface culling will make them disappear when viewed from one side. This is an issue, for example, on the little smoke wisps that are coming out of some of the chiminey's on the island.
+
+![Smoke with no backface culling](./media/smoke-no-culling.png)
+
+If we turn on backface culling they look like this:
+
+![Smoke with backface culling](./media/smoke-culling.png)
+
+So here the proper thing to do is to leave backface culling off, but I have a small problem because they're part of the house meshes (they share the same material) which I DO want to apply backface culling to. Depending on your circumstances you could either split these meshes apart from the parts you do want to apply backface culling to or leave them merged and don't backface cull any of it. Which route you go largely depends on if your scene is Draw Call or Fill Rate limited.
+
+Finally, you might turn on backface culling and see that your mesh appears to turn inside out, like this:
+
+![Backface culling with flipped normals](./media/inverted-normals.png)
+
+(This actually wasn't a problem for this scene, I forced the error so I could show what it looked like.)
+
+If you see something like that it means you have "flipped normals", which basically means that the surfaces of polygons that make up your object are "pointing" at the inside of your object rather than the outside like we want them to. The way we fix this is by selecting the object, entering "Edit mode", making sure we're in "Face Select" mode, and selecting all the faces that are flipped like this. (If it's the entire mesh, like you see above, just click the "Select" menu -> "All") Once the faces are selected click the "Mesh" menu -> "Normals" -> "Flip" and you should see your object starts looking correct again.
+
 ## Improving load times
 
-At this point I think I'm going to stop optimizing for draw call count, because we're doing OK on that front. The Oculus Go I've been testing with primarily is still a bit jumpy depending on the angle you look at the island from, but it's a tolerable experience now, as opposed to being completely unusable when we started. And when you bump up to more powerful hardware like the Oculus Quest it feels really good!
+At this point I think I'm going to stop optimizing for rendering, because we're doing OK on that front. The Oculus Go I've been testing with primarily is still a bit jumpy depending on the angle you look at the island from, but it's a tolerable experience now, as opposed to being completely unusable when we started. And when you bump up to more powerful hardware like the Oculus Quest it feels really good!
 
 However, we're still dealing with long load times for the page, which is mostly due to our fairly large (for the web) assets. If we're exporting to a separate .gltf/bin/textures we can see the breakdown looks something like this:
 
