@@ -239,7 +239,7 @@ Let's see what we can do about that so that our users can start seeing our conte
 
 The .bin file contains all of our mesh data, so things like vertex positions and triangle layouts. This may seem difficult to reduce the size of without removing details from our scene, but fortunately we have some excellent tools to help us out!
 
-I cannot recommend (glTF-Pipeline)[https://github.com/CesiumGS/gltf-pipeline] highly enough for things like this. It's an excellent and easy to use tool that makes a big, meaningful difference in your 3D assets. Follow the instructions on that page to learn how to install and use it, but I'll cover the highlights here:
+I cannot recommend [glTF-Pipeline](https://github.com/CesiumGS/gltf-pipeline) highly enough for things like this. It's an excellent and easy to use tool that makes a big, meaningful difference in your 3D assets. Follow the instructions on that page to learn how to install and use it, but I'll cover the highlights here:
 
 First off, while it doesn't directly affect the total file size, it's helpful to package our separate .gltf/bin/texture files up into a single binary glTF file (.glb). This helps streamline the download a bit by getting rid of some HTTP overhead for each file.
 
@@ -252,8 +252,12 @@ For what it's worth, Blender will export to a .glb directly as well, but in some
 Now we can pull out the big guns: [Draco Compression](https://google.github.io/draco/). This compression library takes our vertex data and crunches it down losslessly to a fraction of it's original size.
 
 ```
-gltf-pipeline -i scene.gltf -o scene.glb
+gltf-pipeline -i scene.glb -o compressedScene.glb -d
 ```
+
+Support for decoding Draco compressed files is also built in to frameworks like Babylon.js and Three.js, so loading them is painless.
+
+So how much does Draco reduce our file size? The output file from running the command above is 9.2MB smaller, which means we've reduced the mesh data to 13% of it's original size! There is some decompression overhead introduced when loading the mesh, and the page will need to load the decompression library as well, so the full story of how much load time this actually saves the user isn't as straightforward as we'd like, but in most cases, especially for large meshes, it's an easy win.
 
 ## Image optimization
 
