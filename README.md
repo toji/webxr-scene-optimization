@@ -12,7 +12,7 @@ One of my favorite sources for 3D content is https://sketchfab.com. Besides bein
 
 So, you find a model that you think would work great for what you have in mind. For me, I'll use this [adorable little fantasy island scene](https://sketchfab.com/3d-models/issum-the-town-on-capital-isle-e433923a64d549fabb2d30635d643ab6). It's low poly asthetic should work out well for the type of mobile-based XR platforms I want to support, like the Oculus Quest. Then you grab your favorite library and throw together a quick test page that loads up the model. For this walkthrough I'm going to use [Babylon.js](https://www.babylonjs.com/) because they have an extremely easy utility for adding VR support to your page with built-in teleporting functionality and I want to be able to jump around the island a bit. There's no reason that any other library you prefer won't work just as well, though.
 
-[My first pass at the code is here.](./original/index.html) It's under 100 lines! Not a bad place to start!
+[My first pass at the code is here.](https://github.com/toji/webxr-scene-optimization/blob/master/original/index.html) It's under 100 lines! Not a bad place to start!
 
 [**You can visit the live version of the unoptimized page here.**](./original/index.html)
 
