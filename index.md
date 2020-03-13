@@ -14,7 +14,7 @@ So, you find a model that you think would work great for what you have in mind. 
 
 [My first pass at the code is here.](https://github.com/toji/webxr-scene-optimization/blob/master/original/index.html) It's under 100 lines! Not a bad place to start!
 
-[**You can visit the live version of the unoptimized page here.**](./original/index.html)
+[**You can visit the live version of the unoptimized page here.**](./original/)
 
 So maybe you fire that up on a desktop and it probably works well! Maybe you have a PC VR headset and give that a try and it's working well too! Hooray!
 
@@ -316,7 +316,7 @@ Frame JS time: ~44ms -> ~13ms (Oculus Go)
 
 Not bad! Not bad at all!
 
-You can [**see the live version of the optimized page here**](./optimized/index.html) and compare to the [unoptmized version](./original/index.html) we linked at the beginning of this guide to see exactly how much of a difference we've made.
+You can [**see the live version of the optimized page here**](./optimized/) and compare to the [unoptmized version](./original/) we linked at the beginning of this guide to see exactly how much of a difference we've made.
 
 Thanks for reading, and good luck with your own projects!
 
