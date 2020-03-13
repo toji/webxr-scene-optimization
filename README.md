@@ -1,6 +1,6 @@
 # WebXR Scene Optimization
 
-**TL;DR:** This mini-tutorial covers some simple methods of optimizing 3D assets for use in WebXR, especially for mobile VR and AR, using free tools like Blender. If you already have a decent handle on WHY your performance is bad and just want the tips, feel free to skip down to the [Finding the bottlenecks](#Finding-the-bottlenecks) section below.
+**TL;DR:** This mini-tutorial covers some simple methods of optimizing 3D assets for use in WebXR, especially for mobile VR and AR, using free tools like Blender. (Although if we're being honest these tips apply to all 3D content on the web, not just XR) If you already have a decent handle on WHY your performance is bad and just want the tips, feel free to skip down to the [Finding the bottlenecks](#Finding-the-bottlenecks) section below.
 
 ## The Problem
 
@@ -24,21 +24,21 @@ Then you try it on your target device. (I'm gonna use an Oculus Go just to reall
 
 (In case you were wondering, all that blackness at the edges is a sign that your content is running very poorly and your users is not having a good time.)
 
-What gives? It's obviously a low poly scene with no fancy shaders or anything. You definitely feel like you've seen more detailed scenes on the same device before. Pls it's the only thing being rendered and it's completely static! You've barely started and your project is already failing!
+What gives? It's obviously a low poly scene with no fancy shaders or anything. You definitely feel like you've seen more detailed scenes on the same device before. Plus it's the only thing being rendered and it's completely static! You've barely started and your project is already failing!
 
 Obviously the only logical conclusion is that WebXR sucks, Javascript sucks, Browsers suck, this whole Web thing was probably a mistake to begin with, and the only really viable way to make VR content is Unity. Right?
 
 ## The Reality
 
-If we take a breath and take a step back, though, we'll see that there's a lot that we can do to improve performance, and none of it requires us to pull out John Carmack levels of GPU sorcery.
+If we take a breath and a step back, though, we'll see that there's a lot that we can do to improve performance, and none of it requires us to pull out John Carmack levels of GPU sorcery.
 
-Here's the truth: Using WebGL for your rendering IS slower than doing the same thing with native code, but only in specific ways and if know what they are you can work on avoiding them.
+Here's the truth: Using WebGL for your rendering IS slower than doing the same thing with native code, but only in specific ways and if you know what they are you can work on avoiding them.
 
 When dealing with performance problems in 3D rendering, we can broadly place our bottlenecks into two categories: Fill Rate limited and Draw Call limited.
 
 Fill Rate problems happen when your GPU simply can't keep up with the pixels you are asking it to draw. This typically happens because you've got a shader that's really complex or are drawing tons of polygons, especially if you've got things like lots of overlapping partially transparent geometry. Using lots of dynamic lights is also a quick way to eat up your GPU's processing power. When you're Fill Rate limited you generally want to try some combination of making your shaders less complicated, reducing how much you're drawing, reducing how many lights you're using, and reducing the resolution that you're rendering at. Basically anything that cuts down on how expensive it is to draw a pixel and how many of those pixels you're drawing.
 
-Now the thing to realize about being Fill Rate limited is that whether you're using WebGL or some native engine, your GPU is still running things at the same speed. The web may introduce a small amount of overhead for compositing the page, but nothing about your GPU's processing power magically gets faster when using native code. Take [ShaderToy](https://www.shadertoy.com/), for example: NOTHING on that site is Draw Call limited, because everything is rendered using 2 triangles. You can still easily find shaders that make your GPU cry, but they wouldn't run any better if you draw the same shader using the most beautifully optimized native code in the world.
+Now the thing to realize about being Fill Rate limited is that whether you're using WebGL or some native engine, your GPU is still running things at the same speed. The web may introduce a small amount of overhead for compositing the page, but nothing about your GPU's processing power magically gets faster when using native code. Take [ShaderToy](https://www.shadertoy.com/), for example: NOTHING on that site is Draw Call limited, because everything is rendered using 2 triangles. You can still easily find shaders that make your GPU cry, but they wouldn't run any better if you drew the same shader using the most beautifully optimized native code in the world.
 
 Where the web has a harder time relative to native code is when you're Draw Call limited, and sadly it's really easy to fall into that bucket. When you're Draw Call limited it's because your code can't feed commands to the GPU fast enough, and so your GPU is just sitting around waiting for you to tell it what to draw. This can be because your code is taking too long to make the draw calls (for example: you're waiting for physics code to finish before you start drawing), the calls you're making are really expensive (ie: Uploading large textures or vertex buffers every frame), or because you're making a lot of not-terribly-expensive calls that quickly add up. In my experience that last scenario is often the most likely.
 
@@ -129,9 +129,11 @@ Material Count:  49
 Mesh Count:  638
 ```
 
-If I go look at some of the performance recommendations for my target device ([detailed here](https://developer.oculus.com/documentation/unity/unity-perf/?locale=en_US)) the rough estimate is that I should only be submitting 50-100 draw calls per frame, and that's in a native environment. If we assume that each mesh is equal to _at least_ one draw call, uh.... We're over that. By a lot.
+If I go look at some of the performance recommendations for my target device ([detailed here](https://developer.oculus.com/documentation/unity/unity-perf/?locale=en_US)) the rough estimate is that I should only be submitting 50-100 draw calls per frame, and that's in a native environment. If we assume that each mesh is equal to _at least_ one draw call, two if we're doing stereo rendering for VR, uh.... We're over that. By a lot.
 
 (See: "This is Fine" dog above. Maybe picture even more flames.)
+
+Incidentally, those same guidelines also say we should be limiting our scene to 100k triangles, and this particual scene is roughly double that, so we're pushing our luck on multiple fronts.
 
 ## Into the Blender
 
@@ -171,9 +173,9 @@ Then we can join them together into one big mesh by clicking the "Object" menu -
 
 ![Join Objects menu item](./media/join-objects.png)
 
-And presto! We've now removed 115 draw calls from our rendering loop!
+And presto! We've now removed 115 mesh switches from our rendering loop!
 
-There's a lot of other opportunities for the same thing in this scene. Houses, fences, people, stones, etc all were re-used by the artist all over the island, so I've happily gone through and merged most of the meshes that I can. The "Outliner" view in the upper right corner is really helpful for this. Any Triangle icon you see is a mesh, so you can just spin through the list and find any meshe with shared materials.
+There's a lot of other opportunities for the same thing in this scene. Houses, fences, people, stones, etc all were re-used by the artist all over the island, so I've happily gone through and merged most of the meshes that I can. The "Outliner" view in the upper right corner is really helpful for this. Any Triangle icon you see is a mesh, so you can just spin through the list and find any meshes with shared materials.
 
 And the reward for my efforts?
 
@@ -209,9 +211,7 @@ Now, the GPU still does a lot of internal tricks to figure out those triangles a
 
 ## Reducing the number of materials
 
-While on my merge-a-palooza I also noticed that there were a couple of textures that shipped with the model that happened to be identical. Browsing through the materials in Blender, I found that they were being used in effectively identical materials (same roughness, blending behavior, etc.) but happened to be applied to different meshes. For example: The little Golem on one end of the island shared an identical material with some tree stumps, but both materials were using a different copy of the same texture. This is a little weird, and I don't expect it to be a common problem that you'd see in most meshes. It's probably just a side effect of how the mesh was authored and exported/imported. In any case, I was able to set both sets of meshes to use a single material, which then let me merge them.
-
-Another common way of reducing the number of materials used is to use Texture Atlases, though it's a method that takes a bit more manual work than some other optimizations. A Texture Atlas is simply combining several textures into one larger one. Depending on the scene and how aggressively you're optimizing it you can either batch a few textures from similar objects into one or entire scene's worth of textures into one big atlas. For this scene I opted for just atlasing a few textures for similar objects. For example: I noticed that there were some stone circles that were always paired with bases that used a stone wall texture, so I combined those two textures into one:
+A common way of reducing the number of materials used is to use Texture Atlases, though it's a method that takes a bit more manual work than some other optimizations. A Texture Atlas is simply combining several textures into one larger one. Depending on the scene and how aggressively you're optimizing it you can either batch a few textures from similar objects into one or entire scene's worth of textures into one big atlas. For this scene I opted for just atlasing a few textures for similar objects. For example: I noticed that there were some stone circles that were always paired with bases that used a stone wall texture, so I combined those two textures into one:
 
 ![Simple atlas](./media/stoneWallCircle_baseColor.png)
 
@@ -221,10 +221,12 @@ Then, in blender, I changed the material for one of the mesheses to use the atla
 
 And of course, once the meshes are sharing a material they're good candiates for merging!
 
-In the end I didn't get too much of a mesh reduction out of these two techniques, but that's mostly because we'd already done most of the agressive mesh reduction in the original merge pass. Still, every reduction helps when you're talking about mobile hardware.
+Also, while on my merge-a-palooza I also noticed that there were a couple of textures that shipped with the model that happened to be identical. Browsing through the materials in Blender, I found that they were being used in effectively identical materials (same roughness, blending behavior, etc.) but happened to be applied to different meshes. For example: The little Golem on one end of the island shared an identical material with some tree stumps, but both materials were using a different copy of the same texture. This is a little weird, and I don't expect it to be a common problem that you'd see in most meshes. It's probably just a side effect of how the mesh was authored and exported/imported. In any case, I was able to set both sets of meshes to use a single material, which then let me merge them.
+
+In the end I didn't get nearly as much of a mesh reduction out of these two techniques, but that's mostly because we'd already done most of the agressive mesh reduction in the original merge pass. Still, every reduction helps when you're talking about mobile hardware.
 
 ```
-Mesh Count:  53 -> 45
+Mesh Count:  53 -> 34
 ```
 
 ## Backface culling
@@ -253,7 +255,7 @@ If you see something like that it means you have "flipped normals", which basica
 
 ## Improving load times
 
-At this point I think I'm going to stop optimizing for rendering, because we're doing OK on that front. The Oculus Go I've been testing with primarily is still a bit jumpy depending on the angle you look at the island from, but it's a tolerable experience now, as opposed to being completely unusable when we started. And when you bump up to more powerful hardware like the Oculus Quest it feels really good!
+At this point I think I'm going to stop optimizing for rendering, because we're doing OK on that front. The Oculus Go I've been testing with primarily is still a bit jumpy depending on the angle you look at the island from, but it's a tolerable experience now, as opposed to being completely unusable when we started. And when you bump up to more powerful hardware like the Oculus Quest it feels pretty good!
 
 However, we're still dealing with long load times for the page, which is mostly due to our fairly large (for the web) assets. If we're exporting to a separate .gltf/bin/textures we can see the breakdown looks something like this:
 
@@ -271,25 +273,19 @@ Let's see what we can do about that so that our users can start seeing our conte
 
 The .bin file contains all of our mesh data, so things like vertex positions and triangle layouts. This may seem difficult to reduce the size of without removing details from our scene, but fortunately we have some excellent tools to help us out!
 
-I cannot recommend [glTF-Pipeline](https://github.com/CesiumGS/gltf-pipeline) highly enough for things like this. It's an excellent and easy to use tool that makes a big, meaningful difference in your 3D assets. Follow the instructions on that page to learn how to install and use it, but I'll cover the highlights here:
+ Follow the instructions on that page to learn how to install and use it, but I'll cover the highlights here:
 
-First off, while it doesn't directly affect the total file size, it's helpful to package our separate .gltf/bin/texture files up into a single binary glTF file (.glb). This helps streamline the download a bit by getting rid of some HTTP overhead for each file.
+First off, while it doesn't directly affect the total file size, it's helpful to package our separate .gltf/bin/texture files up into a single binary glTF file (.glb). This helps streamline the download a bit by getting rid of some HTTP overhead for each file. Blender will export to a .glb directly (it's the default setting), but in some cases it can be good to be able to inspect what Blender's outputting more directly, so the exporting as separate files can be nice during development.
 
-```
-gltf-pipeline -i scene.gltf -o scene.glb
-```
+Next we can pull out the big guns: [Draco Compression](https://google.github.io/draco/). This compression library takes our vertex data and crunches it down losslessly to a fraction of it's original size, and it's as easy as checking a checkbox on the export dialog.
 
-For what it's worth, Blender will export to a .glb directly as well, but in some cases it can be good to be able to inspect what Blender's outputting more directly, so the separate files can be nice during development.
-
-Now we can pull out the big guns: [Draco Compression](https://google.github.io/draco/). This compression library takes our vertex data and crunches it down losslessly to a fraction of it's original size.
-
-```
-gltf-pipeline -i scene.glb -o compressedScene.glb -d
-```
+![glTF Export dialog compression option](./media/compression-option.png)
 
 Support for decoding Draco compressed files is also built in to frameworks like Babylon.js and Three.js, so loading them is painless.
 
-So how much does Draco reduce our file size? The output file from running the command above is 9.2MB smaller, which means we've reduced the mesh data to 13% of it's original size! There is some decompression overhead introduced when loading the mesh, and the page will need to load the decompression library as well, so the full story of how much load time this actually saves the user isn't as straightforward as we'd like, but in most cases, especially for large meshes, it's an easy win.
+So how much does Draco reduce our file size? Just ticking that checkbox gives us a file that's 9.2MB smaller, which means we've reduced the mesh data to 13% of it's original size! There is some decompression overhead introduced when loading the mesh, and the page will need to load the decompression library as well, so the full story of how much load time this actually saves the user isn't as straightforward as we'd like, but in most cases, especially for large meshes, it's an easy win.
+
+For workflows not using Blender, I cannot recommend [glTF-Pipeline](https://github.com/CesiumGS/gltf-pipeline) highly enough. It's an easy-to-use command line tool that will handle packing, unpacking, and compressing your glTF files quite nicely.
 
 ## Image optimization
 
@@ -301,5 +297,25 @@ First thing to look for is any images that just seem too big for their intended 
 
 That image is 512x512 px, and it just really doesn't need to be. We can easily scale it down to a quarter that size (256x256) and not lose anything important.
 
+It's also worth checking to see if saving any particular texture as a JPEG vs. PNG yields better file sizes. PNGs can be smaller for large areas of flat colors (like above), while JPEGs tend to be smaller (but lossy) for more detailed images. Of course if you need transparecy then you should always keep the image as a PNG.
 
-[**See the live version of the optimized page here.**](./optimized/index.html)
+(**TODO:** Need a section about making use of BASIS compressed images here.)
+
+# End Results
+
+And that wraps up this guide to 3D asset optimization. Let's take a look at the numbers at the end of the day:
+
+```
+Materials: 49 -> 34
+Meshes: 638 -> 38
+Number of Files: 51 -> 1
+File Size: 21.7MB -> 8.2MB
+```
+
+Not bad! Not bad at all!
+
+You can [**see the live version of the optimized page here**](./optimized/index.html) and compare to the [unoptmized version](./original/index.html) we linked at the beginning of this guide to see exactly how much of a difference we've made.
+
+Thanks for reading, and good luck with your own projects!
+
+--Brandon
