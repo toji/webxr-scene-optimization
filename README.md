@@ -310,6 +310,8 @@ Materials: 49 -> 34
 Meshes: 638 -> 38
 Number of Files: 51 -> 1
 File Size: 21.7MB -> 8.2MB
+Frame JS time: ~44ms -> ~13ms (Oculus Go)
+               ~34ms -> ~7ms  (Oculus Quest)
 ```
 
 Not bad! Not bad at all!
